@@ -58,6 +58,9 @@ class DataPipline(object):
 
     def process_item(self, item, spider):
 
+        if not item:   # nothing to process
+            return
+
         if self.connection:
 
             try:
@@ -80,8 +83,9 @@ class DataPipline(object):
                 # add to SCRAPED_VIDEO_DATA_TAGS
                 insert_table = 'SCRAPED_VIDEO_DATA_TAGS'
                 for tag in item['tagList']:
+                    # each tag is a tuple that contains 2 elements (tag_name, tag_type)
                     self.connection.execute_non_query('INSERT INTO SCRAPED_VIDEO_DATA_TAGS(' + \
-                        'scrape_id ,tag_name) values(%s,%s)',(scrape_primary_key,tag))
+                        'scrape_id ,tag_name,tag_type) values(%s,%s,%s)',(scrape_primary_key,tag[0],tag[1]))
 
 
                 return item

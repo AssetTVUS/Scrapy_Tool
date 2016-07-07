@@ -3,6 +3,8 @@ import scrapy
 from datetime import datetime
 import re
 import json
+import logging
+from scrapy.selector import Selector
 
 
 class ReportsSpider(scrapy.Spider):
@@ -11,6 +13,9 @@ class ReportsSpider(scrapy.Spider):
     allowed_domains = ['asset.tv'] # crawl these domains
     start_urls = [] # array to contain the urls to scrape
 
+    processed_video_core_ids = dict() # keep a dictionary of processed video core ids
+
+
     # get the list of urls to scrape from ../../scrape_list.txt
     with open('../scrape_list.txt', 'r') as fp:
         for line in fp:
@@ -18,7 +23,24 @@ class ReportsSpider(scrapy.Spider):
 
 
     def parse(self,response):
+
+        #video coreid
+        scriptTag = response.xpath('//script').re(r'"videoCoreID"\:"[0-9]+\"')[0]  #get all of the script tags in an array
+        temp = scriptTag.encode('utf-8')  # looks like "videoCoreID":"200470"
+        temp = '{' + temp + '}'  # looks like '{"videoCoreID":"200470"}'
+        dict = json.loads(temp)  # from JSON string to Python dictionary
+
+        if dict['videoCoreID'] in self.processed_video_core_ids:
+            item = None
+            logging.info("***Skipping " + dict['videoCoreID'])
+            return
+
+        logging.info("Processing " + dict['videoCoreID'])
+
         item = ReportItem()
+        item['videoCoreID'] = dict['videoCoreID']
+        self.processed_video_core_ids[dict['videoCoreID']] = 0
+
 
         # get og_title and remove special chars
         item['og_title'] =  response.xpath('//meta[@property="og:title"]/@content').extract()[0].encode('utf-8')
@@ -43,17 +65,27 @@ class ReportsSpider(scrapy.Spider):
                                  (item['video_duration_datetime'].minute + float(item['video_duration_datetime'].second/60.0)))
 
         #tags
-        item['tagList'] = response.css('.tag-cloud').xpath('./a/@title').extract()
+        #item['tagList'] = response.css('.tag-cloud').xpath('./a/@title').extract()
 
+        tag_type =''
+        anchor_tag=''
+        tagList = []  # a list of tag tuples
+        for x in response.css('.tag-cloud').xpath('*').extract():
+
+            # is this a h3 or an anchor tag
+            if x.startswith('<h3>'):
+
+                #x is a String convert it back to a Selector to use XPath to grab content of the <h3> tag
+                tag_type = Selector(text=x, type='html').xpath('//h3/text()').extract()[0]
+            else:
+                # x is a String convert it back to a Selector to use XPath to grab content of the <a> tag
+                anchor_tag = Selector(text=x, type='html').xpath('//a/@title').extract()[0]
+                tagList.append((anchor_tag,tag_type))  # add this tag to our list
+
+        item['tagList'] = tagList # pass back our list of tags <tuple objects>
         # channel name
-        item['channel_name'] = response.css('.info').xpath('./a/text()').extract()[0].encode('utf-8')
+        item['channel_name'] = response.css('.info').xpath('./a/text()').extract()[0].encode('utf-8').strip()
 
-        #video coreid
-        scriptTag = response.xpath('//script').re(r'"videoCoreID"\:"[0-9]+\"')[0]  #get all of the script tags in an array
-        temp = scriptTag.encode('utf-8')  # looks like "videoCoreID":"200470"
-        temp = '{' + temp + '}'  # looks like '{"videoCoreID":"200470"}'
-        dict = json.loads(temp)  # from JSON string to Python dictionary
-        item['videoCoreID'] = dict['videoCoreID']
 
 
         yield item

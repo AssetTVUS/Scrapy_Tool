@@ -1,0 +1,7 @@
+
+1) clean out "scrape" tables
+delete from SCRAPED_VIDEO_DATA
+delete from SCRAPED_VIDEO_DATA_TAGS
+
+2) delete scrapy.log
+

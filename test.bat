@@ -1,0 +1,1 @@
+scrapy shell https://www.assettv.com/video/masterclass-liquid-alternatives-june-2016?chid=61
