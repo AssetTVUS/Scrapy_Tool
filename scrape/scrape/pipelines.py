@@ -42,6 +42,8 @@ class DataPipline(object):
         user = "sa"
         password = "coffee2016"
         database = "reportsdb"
+
+        # connect to database
         try:
             #self.connection.set_msghandler(my_msg_handler)  # Install our custom handler
             self.connection = _mssql.connect(server=server, user=user, password=password,database=database)
@@ -49,6 +51,15 @@ class DataPipline(object):
 
         except:
             print "Connection Failed"
+            print  sys.exc_info()[0]
+            raise DropItem("Connect Error")
+
+        #clear out "scrape" tables
+        try:
+            self.connection.execute_non_query('DELETE FROM SCRAPED_VIDEO_DATA_TAGS')
+            self.connection.execute_non_query('DELETE FROM SCRAPED_VIDEO_DATA')
+        except:
+            print "Failed to Delete from Scrape Tables"
             print  sys.exc_info()[0]
             raise DropItem("Connect Error")
 
